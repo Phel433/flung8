@@ -109,7 +109,7 @@ const FRAMES = [
   { id: 'kite', name: 'Kite', desc: 'Broad and floaty. Thermals lift it higher, but its top speed is lower.', roll: 2.2, pitch: 1.45, drag: 1.18, stall: 9, lift: 1.3, boost: 0.95, unlock: { level: 4 } },
   { id: 'manta', name: 'Manta', desc: 'Rounded ray wing. Snappy rolls and tight pitch.', roll: 3.5, pitch: 2.05, drag: 1.05, stall: 12, lift: 1.0, boost: 1.0, unlock: { level: 9 } },
   { id: 'swift', name: 'Swift', desc: 'Swept dart. Very fast in a dive, stalls early.', roll: 2.4, pitch: 1.5, drag: 0.82, stall: 17, lift: 0.85, boost: 1.1, unlock: { level: 15 } },
-  { id: 'phoenix', name: 'Phoenix', desc: 'Fast and agile. Unlocks with 10 gold medals.', roll: 3.3, pitch: 1.95, drag: 0.88, stall: 13, lift: 1.05, boost: 1.15, unlock: { golds: 10 } }
+  { id: 'phoenix', name: 'Phoenix', desc: 'Low drag and the strongest boost of any frame. Unlocks with 10 gold medals.', roll: 3.3, pitch: 1.95, drag: 0.88, stall: 13, lift: 1.05, boost: 1.15, unlock: { golds: 10 } }
 ];
 const FRAME_BY_ID = Object.fromEntries(FRAMES.map(f => [f.id, f]));
 
@@ -247,7 +247,7 @@ const CHALLENGES = [
 const TIPS = [
   'Dive to gain speed, then pull up to trade it for height.',
   'Cyan lift rings throw you upward. Line them up and keep your speed.',
-  'Thermals are the shimmering columns. Circle inside them to climb.',
+  'Thermals are columns of rising sparkles. Circle inside them to climb.',
   'Fly close to the ground or water to build a skim bonus.',
   'Too slow and the wing stalls. Point the nose down to recover.',
   'Boost refills when you fly through rings and thermals.',
@@ -260,6 +260,6 @@ const TIPS = [
   'Gold rings in Score Attack are worth extra and refill boost.',
   'Ghosts show your best line. Race them to shave off time.',
   'In Open Sky, everyone flying the same world appears beside you.',
-  'Thunderhead has gusts. Watch the wind arrow and lean into it.',
+  'Thunderhead has gusts that push you sideways. Steer against them.',
   'Press P for photo mode. The world freezes and you can orbit.'
 ];

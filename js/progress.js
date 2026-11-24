@@ -111,7 +111,7 @@ function addXp(n) {
   if (ups) {
     Sfx.levelup();
     addCoins(ups * 50);
-    UI.toast('Pilot level ' + s.level, (levelRewardText(s.level) || 'Keep flying.') + ' +' + ups * 50 + ' coins.', '#7fd6ff');
+    UI.toast('Pilot level ' + s.level, (levelRewardText(s.level) ? levelRewardText(s.level) + ' ' : '') + '+' + ups * 50 + ' coins.', '#7fd6ff');
     if (s.level >= 10) grantAch('level10');
     if (s.level >= 25) grantAch('level25');
     if (s.level >= 40) grantAch('level40');

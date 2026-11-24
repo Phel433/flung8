@@ -825,7 +825,7 @@ const UI = {
     let warn = '';
     if (p.alive && run.phase === 'fly') {
       if (p.oob > 0.2) warn = 'Turn back';
-      else if (p.stall > 0.7) warn = 'Stall — nose down';
+      else if (p.stall > 0.7) warn = 'Stall · nose down';
       else {
         const look = p.speed * 1.6;
         const c = run.world.clearance(p.pos.x + p.fwd.x * look, p.pos.y + p.fwd.y * look, p.pos.z + p.fwd.z * look);
