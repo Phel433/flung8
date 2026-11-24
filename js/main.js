@@ -68,7 +68,7 @@ function tick(dt) {
   if (G.state === 'photo') updatePhotoCam(); else updateCamera(dt);
   const flying = G.state === 'play' && G.run && G.run.phase === 'fly' && p.alive;
   SpeedLines.update(dt, flying ? p.speed : 0, flying && p.boosting);
-  Sfx.setFlight(p.speed, p.boosting, p.stall, flying && p.clear < 9 ? 1 - p.clear / 9 : 0, G.state === 'play' || G.state === 'menu');
+  Sfx.setFlight(p.speed, p.boosting, p.stall, flying && p.clear < 9 ? 1 - p.clear / 9 : 0, (G.state === 'play' && !(G.run && G.run.phase === 'done')) || G.state === 'menu'); // quiet once the results are up
   UI.updateHud(dt);
   G.renderer.render(G.scene, G.camera);
 }
