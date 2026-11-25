@@ -617,7 +617,7 @@ const UI = {
       '<span><kbd>R</kbd></span><span>Back to the last ring</span>' +
       '<span><kbd>P</kbd></span><span>Photo mode</span>' +
       '<span><kbd>Esc</kbd></span><span>Pause</span></div></div>' +
-      '<div><div class="label" style="margin-bottom:8px">Touch</div><p class="muted" style="margin:0 0 8px">Use the arrow buttons at the bottom left: left and right turn, up dives, down climbs. Hold BOOST and BRAKE on the right. CAM changes camera, BACK returns to the last ring.</p>' +
+      '<div><div class="label" style="margin-bottom:8px">Touch</div><p class="muted" style="margin:0 0 8px">Use the stick at the bottom left: left and right turn, up dives, down climbs. Drag a finger on the right side of the screen to fly freely. Hold BOOST and BRAKE on the right. CAM changes camera, BACK returns to the last ring.</p>' +
       '<div class="label" style="margin:14px 0 8px">Gamepad</div><p class="muted" style="margin:0">Left stick steers. Right trigger or A boosts, left trigger brakes. Bumpers or right stick for barrel rolls. Y camera, B back to ring, X photo, Start pause.</p></div>' +
       '<div><div class="label" style="margin-bottom:8px">How gliding works</div><p class="muted" style="margin:0 0 8px">You have no engine. Diving turns height into speed; climbing spends it. Too slow and the wing stalls and drops its nose. Thermals (rising sparkles) and cyan lift rings give height back. Boost refills from rings and thermals.</p>' +
       '<div class="label" style="margin:14px 0 8px">Style</div><p class="muted" style="margin:0">Barrel rolls, loops, inverted flight, skimming the ground or waves, near misses, gates and power dives all score. Rings chain into a multiplier.</p></div>' +

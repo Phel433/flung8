@@ -135,7 +135,7 @@ function flyPilot(p, ctl, dt, W, assist) {
   else if (mode === 'roll' && Math.abs(steer) > 0.1) tRoll = steer * F.roll * auth;
   // upside down and pulling W/S: hold the roll so S pulls through into a dive (split-S) instead of snapping upright first
   else if (Math.abs(ctl.pitch) > 0.1 && Math.abs(steer) <= 0.1 && p.up.y < 0) tRoll = 0;
-  else tRoll = clamp((steer * maxBank - rollA) * 5, -F.roll, F.roll);
+  else tRoll = clamp((steer * maxBank + (ctl.slide || 0) * 0.52 - rollA) * 5, -F.roll, F.roll); // Q/E slide also banks ~30° toward the slide
   if (assist && Math.abs(ctl.pitch) < 0.08 && p.up.y > 0.4 && Math.abs(p.fwd.y) < 0.5) tPitch += -p.fwd.y * 0.35;
   // free fly (hold LMB): the mouse sets roll and pitch rates directly, with no bank limit and no auto-level; keys add on top
   if (ctl.freeFly) {

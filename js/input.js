@@ -8,6 +8,7 @@ const Input = (() => {
   const mouse = { x: 0, y: 0, l: false, r: false, seen: false, dx: 0, dy: 0 };
   const FREE_SENS = 0.004; // free fly: turn rate in rad/s per pixel/second of mouse movement
   let cv = null;
+  const stick = { id: null, x: 0, y: 0 }, drag = { id: null, lx: 0, ly: 0, dx: 0, dy: 0 }; // touch: left stick, right-side drag = free fly
   const locked = () => !!cv && document.pointerLockElement === cv;
   const padPrev = [];
   let padAxPrev = { x: 0, y: 0 };
@@ -31,7 +32,12 @@ const Input = (() => {
     try { if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches) setMode('touch'); } catch (e) { /* ignore */ }
 
     canvas.addEventListener('pointerdown', e => {
-      if (e.pointerType === 'touch') { e.preventDefault(); return; }
+      if (e.pointerType === 'touch') {
+        e.preventDefault();
+        // a finger on the right side of the screen flies freely, like holding the left mouse button
+        if (drag.id == null && e.clientX > innerWidth * 0.4 && G.state === 'play') { drag.id = e.pointerId; drag.lx = e.clientX; drag.ly = e.clientY; try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } }
+        return;
+      }
       mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true;
       if (e.button === 0) {
         mouse.l = true;
@@ -41,11 +47,16 @@ const Input = (() => {
       if (e.button === 2) mouse.r = true;
     });
     canvas.addEventListener('pointermove', e => {
-      if (e.pointerType === 'touch') { e.preventDefault(); return; }
+      if (e.pointerType === 'touch') {
+        e.preventDefault();
+        if (e.pointerId === drag.id) { drag.dx += e.clientX - drag.lx; drag.dy += e.clientY - drag.ly; drag.lx = e.clientX; drag.ly = e.clientY; }
+        return;
+      }
       mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true;
       if (locked()) { mouse.dx += e.movementX || 0; mouse.dy += e.movementY || 0; }
     });
     const up = e => {
+      if (e.pointerId === drag.id) drag.id = null;
       if (e.pointerType !== 'touch') {
         if (e.button === 0) { mouse.l = false; if (locked()) document.exitPointerLock(); }
         if (e.button === 2) mouse.r = false;
@@ -60,6 +71,20 @@ const Input = (() => {
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
     canvas.addEventListener('contextmenu', e => e.preventDefault());
 
+    // touch joystick: drag the knob; x turns, y dives (up) or climbs (down)
+    const st = document.getElementById('t-stick'), knob = st && st.querySelector('i');
+    if (st) {
+      const move = e => {
+        const r = st.getBoundingClientRect(), R = r.width / 2 - 10;
+        let x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2);
+        const l = Math.hypot(x, y); if (l > R) { x *= R / l; y *= R / l; }
+        stick.x = x / R; stick.y = y / R; knob.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+      };
+      const end = e => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = ''; };
+      st.addEventListener('pointerdown', e => { e.preventDefault(); stick.id = e.pointerId; try { st.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } move(e); Sfx.init(); });
+      st.addEventListener('pointermove', e => { if (e.pointerId === stick.id) move(e); });
+      st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
+    }
     // on-screen touch buttons
     document.querySelectorAll('[data-hold]').forEach(b => {
       const k = b.dataset.hold;
@@ -94,13 +119,15 @@ const Input = (() => {
     if (k('ArrowRight')) yaw -= 1;
     if (k('KeyQ')) slide -= 1;
     if (k('KeyE')) slide += 1;
+    if (stick.id != null) { const dz = v => (Math.abs(v) < 0.12 ? 0 : v); roll += dz(stick.x); pitch += dz(stick.y); }
     pitch *= invert;
     let boost = k('Space') || held.boost, brake = k('ShiftLeft') || k('ShiftRight') || held.brake;
     // free fly: LMB held with the pointer locked; the mouse sets roll and pitch rates (rad/s)
     if (locked() && (G.state !== 'play' || (G.run && G.run.phase === 'done'))) document.exitPointerLock();
-    const freeFly = locked() && mouse.l && G.state === 'play';
+    if (drag.id != null && G.state !== 'play') drag.id = null;
+    const freeFly = (locked() && mouse.l || drag.id != null) && G.state === 'play';
     const rate = 1 / Math.max(G.dt || 1 / 60, 1 / 240);
-    const mxr = freeFly ? mouse.dx * rate * FREE_SENS : 0, myr = freeFly ? mouse.dy * rate * FREE_SENS * invert : 0;
+    const mxr = freeFly ? (mouse.dx + drag.dx * 1.5) * rate * FREE_SENS : 0, myr = freeFly ? (mouse.dy + drag.dy * 1.5) * rate * FREE_SENS * invert : 0;
     if (!freeFly && mode === 'kb' && st.mouse && mouse.seen && G.state === 'play') {
       const mx = (mouse.x - G.W / 2) / (Math.min(G.W, G.H) * 0.35), my = (mouse.y - G.H / 2) / (Math.min(G.W, G.H) * 0.35);
       const dz = v => (Math.abs(v) < 0.06 ? 0 : clamp(v, -1, 1));
@@ -146,6 +173,6 @@ const Input = (() => {
     }
     Object.assign(S, { pitch: clamp(pitch, -1, 1), roll: clamp(roll, -1, 1), yaw: clamp(yaw, -1, 1), boost, brake, cam, reset, pause, photo, map, ok, back, nav, board, steer, drop, slide, freeFly, mx: mxr, my: myr });
   }
-  function endFrame() { pressed.clear(); taps.clear(); mouse.dx = mouse.dy = 0; }
+  function endFrame() { pressed.clear(); taps.clear(); mouse.dx = mouse.dy = 0; drag.dx = drag.dy = 0; }
   return { bind, update, endFrame, setMode, state: S, get mode() { return mode; } };
 })();

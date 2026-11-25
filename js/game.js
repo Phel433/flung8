@@ -1076,17 +1076,19 @@ function updateCamera(dt) {
     // free fly: while LMB is held the camera keeps the offset and up it had at the press, so the view doesn't turn
     // and the glider visibly spins; on release it eases back to the chase view over about half a second
     const ff = G.state === 'play' && Input.state.freeFly;
-    if (ff && !G.freeWas) G.free = { off: cam.position.clone().sub(p.pos), up: cam.up.clone() };
+    // keep last frame's camera exactly (position, aim and up), so pressing LMB doesn't move the view at all
+    if (ff && !G.freeWas) G.free = { off: cam.position.clone().sub(p.pos), up: cam.up.clone(), look: (G.camLook || p.pos).clone().sub(p.pos) };
     G.freeWas = ff;
     G.freeK = ff ? 1 : Math.max(0, (G.freeK || 0) - dt * 2);
     if (ff && G.free) G.camPos.copy(p.pos).add(G.free.off);
     for (let k = 0; k < 10 && W.clearance(G.camPos.x, G.camPos.y, G.camPos.z).d < 3; k++) G.camPos.lerp(p.pos, 0.3);
     cam.position.copy(G.camPos);
     _c.copy(p.pos).addScaledVector(p.fwd, 30).addScaledVector(_a, far ? 2 : 3);
-    if (G.freeK > 0 && G.free) { const k = smooth(0, 1, G.freeK); _a.lerp(G.free.up, k).normalize(); _c.lerp(p.pos, k); }
+    if (G.freeK > 0 && G.free) { const k = smooth(0, 1, G.freeK); _a.lerp(G.free.up, k).normalize(); _c.lerp(_b.copy(p.pos).add(G.free.look), k); }
     else G.free = null;
     cam.up.copy(_a);
     cam.lookAt(_c);
+    (G.camLook || (G.camLook = new THREE.Vector3())).copy(_c);
   } else if (mode === 'cine') {
     if (!G.cinePos || G.cinePos.distanceTo(p.pos) > 240) {
       G.cinePos = p.pos.clone().addScaledVector(p.fwd, 150 + p.speed).add(_a.set((Math.random() - 0.5) * 70, 10 + Math.random() * 20, (Math.random() - 0.5) * 70));
