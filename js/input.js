@@ -114,7 +114,7 @@ const Input = (() => {
     if (k('KeyS') || k('ArrowDown') || held.down) pitch += 1;
     if (k('KeyA') || held.left) roll -= 1;
     if (k('KeyD') || held.right) roll += 1;
-    // barrel rolls on the left/right arrows; Q/E slide sideways without turning
+    // barrel rolls on the left/right arrows; Q/E flat turn with wings level
     if (k('ArrowLeft')) yaw += 1;
     if (k('ArrowRight')) yaw -= 1;
     if (k('KeyQ')) slide -= 1;

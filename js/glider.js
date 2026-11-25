@@ -135,7 +135,7 @@ function flyPilot(p, ctl, dt, W, assist) {
   else if (mode === 'roll' && Math.abs(steer) > 0.1) tRoll = steer * F.roll * auth;
   // upside down and pulling W/S: hold the roll so S pulls through into a dive (split-S) instead of snapping upright first
   else if (Math.abs(ctl.pitch) > 0.1 && Math.abs(steer) <= 0.1 && p.up.y < 0) tRoll = 0;
-  else tRoll = clamp((steer * maxBank + (ctl.slide || 0) * 0.52 - rollA) * 5, -F.roll, F.roll); // Q/E slide also banks ~30° toward the slide
+  else tRoll = clamp((steer * maxBank - rollA) * 5, -F.roll, F.roll); // Q/E slide keeps the wings level
   if (assist && Math.abs(ctl.pitch) < 0.08 && p.up.y > 0.4 && Math.abs(p.fwd.y) < 0.5) tPitch += -p.fwd.y * 0.35;
   // free fly (hold LMB): the mouse sets roll and pitch rates directly, with no bank limit and no auto-level; keys add on top
   if (ctl.freeFly) {
@@ -162,6 +162,8 @@ function flyPilot(p, ctl, dt, W, assist) {
   const turn = -steer * TURN_RATE * turnK * (1 - p.stall * 0.6) * (ctl.brake ? 1.35 : 1);
   _q.setFromAxisAngle(V_UP, turn * dt);
   p.q.premultiply(_q);
+  // Q/E: flat turn about the glider's own up axis, so it stays a turn (not a spin) when climbing straight up or banked
+  if (ctl.slide) { _q.setFromAxisAngle(V_UP, -ctl.slide * TURN_RATE * (1 - p.stall * 0.6) * dt); p.q.multiply(_q); }
   p.q.normalize();
   updateAxes(p);
 
@@ -200,9 +202,6 @@ function flyPilot(p, ctl, dt, W, assist) {
   p.braking = !!ctl.brake;
 
   p.vel.copy(p.dir).multiplyScalar(p.speed);
-  // Q/E: slide sideways along the level wing line, heading unchanged (players only; the autopilot never slides)
-  p.slideV = damp(p.slideV || 0, (ctl.slide || 0) * 14, 4, dt);
-  if (Math.abs(p.slideV) > 0.01) { _v2.set(-p.fwd.z, 0, p.fwd.x); if (_v2.lengthSq() < 1e-6) _v2.set(p.right.x, 0, p.right.z); p.vel.addScaledVector(_v2.normalize(), p.slideV); }
   // sink when slow or stalled
   p.vel.y -= p.stall * 14 + Math.max(0, 20 - p.speed) * 0.25;
   // thermals
