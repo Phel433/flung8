@@ -107,7 +107,7 @@ const Input = (() => {
       brake = brake || mouse.r;
     }
     let cam = w('KeyC') || taps.has('cam'), reset = w('KeyR') || taps.has('reset'), pause = w('Escape') || taps.has('pause');
-    let photo = w('KeyP') || taps.has('photo'), map = w('KeyM') || taps.has('map'), steer = w('KeyT');
+    let photo = w('KeyP') || taps.has('photo'), map = w('KeyM') || taps.has('map'), steer = w('KeyT'), drop = w('KeyF') || taps.has('drop');
     let ok = false, back = w('Escape') || w('Backspace');
     let board = k('Tab');
     let nav = null;
@@ -129,6 +129,7 @@ const Input = (() => {
         boost = boost || b(7) || b(0);
         brake = brake || b(6);
       }
+      drop = drop || e(11);
       cam = cam || e(3); reset = reset || e(1) && G.state === 'play'; pause = pause || e(9); photo = photo || e(2) && G.state === 'play'; map = map || e(8);
       ok = ok || e(0) && G.state !== 'play'; back = back || e(1) && G.state !== 'play';
       board = board || b(8);
@@ -141,7 +142,7 @@ const Input = (() => {
       }
       for (let i = 0; i < gp.buttons.length; i++) padPrev[i] = b(i);
     }
-    Object.assign(S, { pitch: clamp(pitch, -1, 1), roll: clamp(roll, -1, 1), yaw: clamp(yaw, -1, 1), boost, brake, cam, reset, pause, photo, map, ok, back, nav, board, steer, freeFly, mx: mxr, my: myr });
+    Object.assign(S, { pitch: clamp(pitch, -1, 1), roll: clamp(roll, -1, 1), yaw: clamp(yaw, -1, 1), boost, brake, cam, reset, pause, photo, map, ok, back, nav, board, steer, drop, freeFly, mx: mxr, my: myr });
   }
   function endFrame() { pressed.clear(); taps.clear(); mouse.dx = mouse.dy = 0; }
   return { bind, update, endFrame, setMode, state: S, get mode() { return mode; } };

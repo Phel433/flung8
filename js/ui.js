@@ -242,8 +242,11 @@ const UI = {
     const sky = sum(by.sky), race = sum(by.race);
     $('mc-sky').textContent = !Net.hasRoom ? 'Offline · you fly alone' : sky ? sky + ' flying now' : 'Fly with anyone online';
     $('mc-race').textContent = !Net.hasRoom ? 'Offline · needs live play' : race ? race + ' in race rooms' : 'Race other pilots live';
+    const dm = dailyMission(todayKey());
+    $('mc-daily').textContent = (G.save.missionDay === dm.key ? 'Done today · ' : '') + WORLD_BY_ID[dm.world].short + ' · ' + dm.name;
   },
   flyNow() {
+    if (G.settings.menuMode === 'daily') { this.launch({ mode: 'mission' }); return; } // the world is set by the date
     this.mapIntent = G.settings.menuMode || 'courses';
     this.go('fly');
   },
@@ -607,6 +610,7 @@ const UI = {
       '<span><kbd>←</kbd> <kbd>→</kbd> or <kbd>Q</kbd> <kbd>E</kbd></span><span>Barrel roll left / right (hold)</span>' +
       '<span><kbd>Space</kbd></span><span>Boost (uses the boost bar)</span>' +
       '<span><kbd>Shift</kbd></span><span>Air brake, tighter turns</span>' +
+      '<span><kbd>F</kbd></span><span>Drop a supply crate (Daily mission)</span>' +
       '<span>Hold left mouse</span><span>Fly freely with the mouse. Turning hard costs speed.</span>' +
       '<span><kbd>C</kbd></span><span>Change camera</span>' +
       '<span><kbd>R</kbd></span><span>Back to the last ring</span>' +
@@ -625,7 +629,7 @@ const UI = {
     this.showOnly('none');
     $('ov-pause').hidden = true; $('ov-results').hidden = true;
     $('hud').hidden = false;
-    const name = run.mode === 'endless' ? 'Endless · ' + run.cdef.name : run.mode === 'gems' ? 'Gem Rush' : run.cdef ? run.cdef.name : run.mode === 'attack' ? 'Score Attack' : run.mode === 'sky' ? 'Open Sky' : 'Explore';
+    const name = run.mission ? 'Daily · ' + run.mission.name : run.mode === 'endless' ? 'Endless · ' + run.cdef.name : run.mode === 'gems' ? 'Gem Rush' : run.cdef ? run.cdef.name : run.mode === 'attack' ? 'Score Attack' : run.mode === 'sky' ? 'Open Sky' : 'Explore';
     $('h-mode').textContent = WORLD_BY_ID[G.worldId].short + ' · ' + name;
     $('h-score').hidden = !(run.mode === 'attack' || run.mode === 'free' || run.mode === 'sky' || run.mode === 'gems');
     $('h-pilots').hidden = run.mode !== 'sky';
@@ -636,6 +640,9 @@ const UI = {
       const next = ['bronze', 'silver', 'gold', 'plat'].find(m => !got || MEDAL_RANK[m] > MEDAL_RANK[got]);
       $('h-target').textContent = next ? MEDAL_NAMES[next] + ' ' + fmtTime(run.medals[next]) : 'Best ' + fmtTime(best);
     }
+    if (run.mission) this.toast('Daily mission · ' + run.mission.name, run.mission.text, '#ffd36b');
+    const dropM = !!(run.mission && run.mission.type === 'drop');
+    $('t-drop').hidden = !dropM; $('t-reset').hidden = dropM;
     $('lobby').hidden = !(run.mode === 'race' && run.phase === 'lobby');
     $('touch-hint').hidden = G.save.stats.flights > 3;
     $('count').hidden = true; $('warn').hidden = true;
@@ -672,7 +679,7 @@ const UI = {
     const run = G.run;
     $('ov-pause').hidden = false;
     const btns = [['Resume', () => resumeGame()]];
-    if (run.mode === 'course' || run.mode === 'attack' || run.mode === 'endless') btns.push(['Restart', () => { $('ov-pause').hidden = true; startRun({ mode: run.mode, courseId: run.cdef && run.cdef.id, worldId: G.worldId, ghost: run.boardGhost }); }]);
+    if (run.mode === 'course' || run.mode === 'attack' || run.mode === 'endless' || run.mode === 'mission') btns.push(['Restart', () => { $('ov-pause').hidden = true; startRun({ mode: run.mode, courseId: run.cdef && run.cdef.id, worldId: G.worldId, ghost: run.boardGhost }); }]);
     btns.push(['Change camera (' + CAM_NAMES[G.camMode].replace(' camera', '') + ')', () => { cycleCamera(); this.pause(); }]);
     btns.push(['Settings', () => this.pauseSettings()]);
     btns.push(['Sound: ' + (G.settings.master > 0 ? 'On' : 'Off'), () => { G.settings.master = G.settings.master > 0 ? 0 : 0.8; saveSettings(); Sfx.setVolumes(G.settings.master, G.settings.music, G.settings.sfx); this.pause(); }]);
@@ -737,6 +744,12 @@ const UI = {
       if (other) btns.push(['Try ' + other.name, () => startRun({ mode: 'course', courseId: other.id })]);
       btns.push(['Board', () => { this.quitToMenu(); this.boardTab = run.cdef.id; this.go('boards'); }]);
       btns.push(['Menu', () => this.quitToMenu()]);
+    } else if (R.kind === 'mission') {
+      const m = run.mission;
+      html = '<div class="label">Daily mission · ' + escapeHtml(WORLD_BY_ID[m.world].name) + '</div><h2>' + (R.ok ? 'Mission complete' : 'Mission failed') + '</h2>' +
+        '<div class="res-big">' + escapeHtml(m.name) + '</div><div class="muted">' + escapeHtml(m.text) + '</div>' +
+        '<div class="muted">' + (R.ok ? (R.first ? 'First clear today: +250 coins.' : 'Already cleared today. A new mission comes tomorrow.') : escapeHtml(R.reason || '')) + '</div>' + xpLine + stats;
+      btns = [[R.ok ? 'Fly it again' : 'Try again', () => startRun({ mode: 'mission' })], ['Menu', () => this.quitToMenu()]];
     } else if (R.kind === 'endless') {
       html = '<div class="label">' + escapeHtml(WORLD_BY_ID[run.cdef.world].name) + ' · Endless · ' + escapeHtml(run.cdef.name) + '</div><h2>' + (R.pb ? 'New best' : R.reason === 'crashed' ? 'Crashed' : 'Missed a ring') + '</h2>' +
         '<div class="res-big num">' + fmtNum(R.rings) + ' rings</div><div class="muted">' + (R.prev ? 'Previous best ' + fmtNum(R.prev) + ' rings' : 'First Endless run on this course') + '</div>' + xpLine + stats;
@@ -800,10 +813,11 @@ const UI = {
     set('h-speedu', kmh ? 'km/h' : 'm/s');
     set('h-alt', String(Math.max(0, Math.round(p.pos.y - (run.world.waterLevel > -1e5 ? run.world.waterLevel : 0)))));
     $('h-boost').style.width = Math.round(p.boost * 100) + '%';
-    if (run.mode === 'attack') set('h-time', fmtTime(Math.max(0, run.timeLimit - run.t)));
+    if (run.mode === 'attack' || (run.mission && run.timeLimit)) set('h-time', fmtTime(Math.max(0, run.timeLimit - run.t)));
     else if (run.mode === 'free' || run.mode === 'sky' || run.mode === 'gems') set('h-time', run.stats.km.toFixed(2) + ' km');
     else set('h-time', fmtTime(run.t));
-    if (run.mode === 'endless') set('h-rings', run.next + ' rings');
+    if (run.mission) { set('h-rings', run.mission.name); set('h-target', missionGoalText(run)); }
+    else if (run.mode === 'endless') set('h-rings', run.next + ' rings');
     else if (run.mode === 'gems') set('h-rings', (run.gems || 0) + ' gems');
     else if (run.rings.length && run.mode !== 'attack') set('h-rings', Math.min(run.next, run.rings.length) + ' / ' + run.rings.length);
     else if (run.mode === 'attack') set('h-rings', run.stats.rings + ' rings');

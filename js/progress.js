@@ -8,7 +8,7 @@ function newSave() {
     v: 1, callsign: '', frame: 'falcon', paint: 'dawn', trail: 'mist',
     xp: 0, level: 1, best: {}, medals: {}, attack: {}, endless: {}, gemrush: {}, shards: {}, ach: {}, coins: 0, owned: {},
     stats: { km: 0, rings: 0, rolls: 0, loops: 0, thermal: 0, crashes: 0, flights: 0, maxSpeed: 0, races: 0, raceWins: 0, dailyDays: [], challenges: 0, time: 0 },
-    daily: { key: '', prog: {}, done: [] }, lastWorld: 'harbor', seenHelp: false
+    daily: { key: '', prog: {}, done: [] }, lastWorld: 'harbor', seenHelp: false, missionDay: ''
   };
 }
 

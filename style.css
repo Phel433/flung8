@@ -107,6 +107,7 @@ button.chip:hover { border-color: rgba(255, 255, 255, 0.35); }
 .mcard[data-mode="courses"] { --mc: #7fd6ff; }
 .mcard[data-mode="sky"] { --mc: #b58bff; }
 .mcard[data-mode="race"] { --mc: #ff7a8a; }
+.mcard[data-mode="daily"] { --mc: #ffd36b; }
 .flybtn { flex: none; min-width: 220px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; padding: 0 30px; background: var(--apricot); color: var(--on-apricot); transition: filter .12s ease-out; }
 .flybtn:hover { filter: brightness(1.08); }
 .flybtn span { font-family: var(--display); font-weight: 900; font-size: 44px; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1; }
@@ -321,6 +322,8 @@ body:not([data-input="touch"]) #touch { display: none; }
 #t-brake { width: 64px; height: 64px; right: calc(max(20px, env(safe-area-inset-right, 0px)) + 14px); bottom: calc(max(24px, env(safe-area-inset-bottom, 0px)) + 104px); }
 #t-cam { width: 52px; height: 52px; right: calc(max(20px, env(safe-area-inset-right, 0px)) + 20px); bottom: calc(max(24px, env(safe-area-inset-bottom, 0px)) + 244px); }
 #t-reset { width: 52px; height: 52px; right: calc(max(20px, env(safe-area-inset-right, 0px)) + 20px); bottom: calc(max(24px, env(safe-area-inset-bottom, 0px)) + 180px); }
+#t-drop { width: 52px; height: 52px; right: calc(max(20px, env(safe-area-inset-right, 0px)) + 20px); bottom: calc(max(24px, env(safe-area-inset-bottom, 0px)) + 180px); }
+#touch .tb[hidden] { display: none; }
 #t-pause { width: 46px; height: 46px; left: 50%; transform: translateX(-50%); top: max(64px, env(safe-area-inset-top, 0px)); border-radius: 12px; }
 /* arrow pad, bottom-left: works like the arrow keys */
 #touch .tpad { width: 64px; height: 64px; border-radius: 18px; }

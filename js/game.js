@@ -169,6 +169,8 @@ function startRun(opts) {
   const mode = opts.mode;
   let cdef = null, worldId = opts.worldId;
   if (opts.courseId) { cdef = courseDefById(opts.courseId); worldId = cdef.world; }
+  const mission = mode === 'mission' ? opts.mission || dailyMission(todayKey()) : null;
+  if (mission) worldId = mission.world;
   const W = loadWorld(worldId);
   G.save.lastWorld = worldId;
   const run = {
@@ -180,15 +182,18 @@ function startRun(opts) {
     timeLimit: mode === 'attack' ? 120000 : 0, finished: false, results: null, boardGhost: opts.ghost || null
   };
   G.run = run;
+  if (mission) { run.mission = Object.assign({}, mission, { got: 0 }); run.timeLimit = mission.time * 1000; }
   run.weather = !!opts.weather; // Board switch: weather changes on every ring or gem
   setWeather(W, 'clear');
   // clean previous objects
   if (G.ringGroup) { G.scene.remove(G.ringGroup); G.ringGroup = null; }
   if (G.shardGroup) { G.scene.remove(G.shardGroup); G.shardGroup = null; }
   if (G.ghostMesh) { G.scene.remove(G.ghostMesh); G.ghostMesh = null; }
+  if (G.missionGroup) { G.scene.remove(G.missionGroup); G.missionGroup = null; }
   FX.clear();
   const P = G.player;
-  if (mode === 'endless') {
+  if (mode === 'mission') setupMission(run, W, P.p);
+  else if (mode === 'endless') {
     run.course = endlessChunk(W, cdef, null) || getCourse(cdef, W);
     run.rings = run.course.rings;
     G.ringGroup = buildRingMeshes(run.rings, W);
@@ -294,7 +299,7 @@ function stepPlay(dt) {
   if (run.phase === 'done') { syncPlayerMesh(dt, 0.3); stepRaceAfter(dt); return; }
 
   run.t += dt * 1000;
-  if (run.timeLimit && run.t >= run.timeLimit) { finishAttack(); return; }
+  if (run.timeLimit && run.t >= run.timeLimit) { if (run.mission) finishMission(false, 'Out of time.'); else finishAttack(); return; }
 
   // crashed: wait, then respawn
   if (!p.alive) {
@@ -321,12 +326,14 @@ function stepPlay(dt) {
     const r = run.rings[run.next];
     if (crossesRing(prev, p.pos, r, 1.5, true)) passRing(run, r);
   }
-  if (run.mode === 'endless') {
+  const chase = run.mission && run.mission.type === 'chase';
+  if (run.mode === 'endless' || chase) {
     if (run.next >= run.rings.length - 4) extendEndless(run);
     const r = run.rings[run.next];
     // flew past the next ring without going through it, or wandered off: the run is over
-    if (r && (_a.copy(p.pos).sub(r.pos).dot(r.normal) > 25 || p.pos.distanceTo(r.pos) > 700)) { finishEndless('missed'); return; }
+    if (r && (_a.copy(p.pos).sub(r.pos).dot(r.normal) > 25 || p.pos.distanceTo(r.pos) > 700)) { if (chase) finishMission(false, 'You missed a ring.'); else finishEndless('missed'); return; }
   }
+  if (run.mission && stepMission(run, p, I, dt)) return;
   // gates
   for (const gt of W.gates) {
     const cool = run.gateCool.get(gt) || 0;
@@ -388,7 +395,8 @@ function passRing(run, r) {
   else Sfx.ring(run.combo);
   run.xpPending += 6;
   if (run.splitsPB && run.splitsPB[run.next - 1] != null) UI.splitDelta(run.t - run.splitsPB[run.next - 1]);
-  if (run.mode !== 'endless' && (r.type === 'finish' || run.next >= run.rings.length)) {
+  if (run.mission) run.ringT = 0; // ring chase: the clock to the next ring restarts
+  if (run.mode !== 'endless' && !run.mission && (r.type === 'finish' || run.next >= run.rings.length)) {
     if (run.mode === 'race') finishRace(); else finishCourse();
   }
 }
@@ -544,8 +552,8 @@ function respawn() {
 function weatherChange(run) { if (run.weather) UI.flash('Weather: ' + WEATHER_NAMES[randomWeather(run.world)], true); }
 function collectShard(run, s) {
   weatherChange(run);
-  if (run.mode === 'gems') {
-    // Gem Rush: nothing is saved per gem; the gem just turns up somewhere else
+  if (run.mode === 'gems' || run.mode === 'mission') {
+    // Gem Rush and the Gem sprint mission: nothing is saved per gem; the gem just turns up somewhere else
     run.gems = (run.gems || 0) + 1; run.coins = (run.coins || 0) + 2;
     FX.burst(s.pos, '#7fe8ff', 60, 24, 1.2, 3);
     Sfx.shard();
@@ -662,7 +670,7 @@ function endlessChunk(W, cdef, last) {
   return null;
 }
 function extendEndless(run) {
-  const c = endlessChunk(run.world, run.cdef, run.rings[run.rings.length - 1]);
+  const c = endlessChunk(run.world, run.cdef || { kind: 'line' }, run.rings[run.rings.length - 1]);
   if (!c) return; // boxed in: no new rings, so the run ends at the last one
   const base = run.rings.length;
   c.rings.forEach((r, i) => (r.idx = base + i));
@@ -683,6 +691,168 @@ function finishEndless(reason) {
   const ups = addXp(xp);
   saveProgress();
   run.results = { kind: 'endless', rings, pb, prev, reason, xp, levelUps: ups };
+  UI.showResults(run);
+}
+
+/* ---------- daily missions ---------- */
+function setupMission(run, W, p) {
+  const m = run.mission;
+  if (m.type === 'chase') {
+    run.course = endlessChunk(W, { kind: 'line' }, null) || getCourse(COURSE_BY_ID[W.def.id + '-line'], W);
+    run.rings = run.course.rings; run.ringT = 0;
+    G.ringGroup = buildRingMeshes(run.rings, W); G.scene.add(G.ringGroup);
+    placePilot(p, run.course.start.pos, run.course.start.dir);
+    return;
+  }
+  if (m.type === 'gems') { scatterShards(W, []); G.shardGroup = buildShardMeshes(W, []); G.scene.add(G.shardGroup); }
+  if (m.type === 'drop') { m.zoneList = pickDropZones(W, m.zones); m.flying = []; G.missionGroup = buildDropZones(m.zoneList); G.scene.add(G.missionGroup); }
+  if (m.type === 'climb') {
+    // start low in a thermal, so the height to gain is really there
+    const t = W.thermals[Math.floor(Math.random() * W.thermals.length)];
+    if (t) {
+      placePilot(p, new THREE.Vector3(t.x + t.r * 0.4, t.y0 + 90, t.z), new THREE.Vector3(0, 0, 1));
+      for (let k = 0; k < 12 && W.clearance(p.pos.x, p.pos.y, p.pos.z).d < 25; k++) p.pos.y += 15;
+      m.startY = m.lastY = p.pos.y; m.gain = 0;
+      return;
+    }
+  }
+  spawnOpenAir(p, W);
+  m.startY = m.lastY = p.pos.y; m.gain = 0;
+}
+/* drop zones: flat open ground (or island tops) with clear sky above, well apart */
+function pickDropZones(W, n) {
+  const r = RNG((Math.random() * 2147483647) | 0), out = [];
+  if (W.islands && W.islands.length) {
+    const isl = W.islands.slice().sort(() => r() - 0.5).filter(i => i.r > 30);
+    for (const i of isl.slice(0, n)) out.push({ x: i.x, y: i.top, z: i.z, r: Math.min(22, i.r * 0.5), hit: false });
+    return out;
+  }
+  // strict first (flat, open, far apart); hilly worlds like Lantern Bay relax the rules step by step until n zones fit
+  for (const k of [1, 1.6, 2.4, 3.5]) {
+    for (let t = 0; t < 4000 && out.length < n; t++) {
+      const x = r.range(-1100, 1100), z = r.range(-1100, 1100), y = W.heightAt(x, z);
+      if (y < W.waterLevel + 2 || W.slopeAt(x, z) > 0.18 * k) continue;
+      if ([[18, 0], [-18, 0], [0, 18], [0, -18]].some(([dx, dz]) => Math.abs(W.heightAt(x + dx, z + dz) - y) > 4 * k)) continue;
+      if (W.clearance(x, y + 60, z).d < 45 / k) continue; // open sky to fly in
+      if (out.some(o => Math.hypot(o.x - x, o.z - z) < 350 / k)) continue;
+      out.push({ x, y, z, r: 22, hit: false });
+    }
+    if (out.length >= n) break;
+  }
+  return out;
+}
+function buildDropZones(zones) {
+  const grp = new THREE.Group();
+  const ringG = new THREE.TorusGeometry(1, 0.06, 6, 48), discG = new THREE.CircleGeometry(1, 40);
+  const beamG = new THREE.CylinderGeometry(1.6, 1.6, 300, 8, 1, true); beamG.translate(0, 150, 0);
+  for (const z of zones) {
+    const col = new THREE.Color('#ffd36b');
+    const ring = new THREE.Mesh(ringG, new THREE.MeshBasicMaterial({ color: col, toneMapped: false }));
+    ring.scale.setScalar(z.r); ring.rotation.x = -Math.PI / 2; ring.position.set(z.x, z.y + 0.8, z.z);
+    const disc = new THREE.Mesh(discG, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.18, depthWrite: false }));
+    disc.scale.setScalar(z.r); disc.rotation.x = -Math.PI / 2; disc.position.set(z.x, z.y + 0.6, z.z);
+    const beam = new THREE.Mesh(beamG, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }));
+    beam.position.set(z.x, z.y, z.z);
+    grp.add(ring, disc, beam);
+    z.mats = [ring.material, disc.material, beam.material];
+  }
+  return grp;
+}
+const CRATE_G = new THREE.BoxGeometry(2.2, 1.6, 2.2), CRATE_M = new THREE.MeshStandardMaterial({ color: '#c8894a', flatShading: true, roughness: 0.9 });
+function dropCrate(run, p) {
+  const m = run.mission;
+  if (m.crates <= 0) { UI.flash('No crates left', true); return; }
+  m.crates--;
+  const mesh = new THREE.Mesh(CRATE_G, CRATE_M);
+  const pos = p.pos.clone().addScaledVector(p.up, -2.5);
+  mesh.position.copy(pos); G.missionGroup.add(mesh);
+  m.flying.push({ pos, vel: p.vel.clone(), mesh });
+  Sfx.click();
+}
+/* where a crate stops: the ground, the water, the cloud sea, or an island top */
+function crateFloor(W, x, z) {
+  let f = W.floorAt(x, z);
+  if (W.islands) for (const i of W.islands) if (Math.hypot(x - i.x, z - i.z) < i.r * 0.9) f = Math.max(f, i.top);
+  return f;
+}
+function stepCrates(run, dt) {
+  const m = run.mission, W = run.world;
+  for (const c of m.flying.slice()) {
+    // a crate keeps the glider's speed, then gravity and air drag curve it down: release before you are over the zone
+    c.vel.y -= 9.81 * dt; c.vel.multiplyScalar(1 - 0.12 * dt);
+    c.pos.addScaledVector(c.vel, dt);
+    c.mesh.position.copy(c.pos); c.mesh.rotation.x += dt * 1.5; c.mesh.rotation.z += dt;
+    const floor = crateFloor(W, c.pos.x, c.pos.z);
+    if (c.pos.y > floor + 0.8) continue;
+    c.pos.y = floor + 0.8; c.mesh.position.copy(c.pos); c.mesh.rotation.set(0, c.mesh.rotation.y, 0);
+    m.flying.splice(m.flying.indexOf(c), 1);
+    const open = m.zoneList.filter(z => !z.hit);
+    const near = open.map(z => ({ z, d: Math.hypot(c.pos.x - z.x, c.pos.z - z.z) })).sort((a, b) => a.d - b.d)[0];
+    if (near && near.d <= near.z.r && Math.abs(c.pos.y - near.z.y) < 15) {
+      near.z.hit = true; m.got++;
+      near.z.mats.forEach(mt => mt.color.set('#6dffb0'));
+      FX.burst(c.pos, '#6dffb0', 50, 18, 1, 3); Sfx.gold();
+      UI.flash('Zone hit · ' + m.got + ' / ' + m.zoneList.length, true);
+    } else {
+      FX.burst(c.pos, '#c8894a', 20, 10, 0.8, 2);
+      UI.flash(near ? 'Missed by ' + Math.round(near.d - near.z.r) + ' m' : 'Missed', true);
+    }
+  }
+}
+/* runs every flying frame of a mission; returns true when the mission just ended */
+function stepMission(run, p, I, dt) {
+  const m = run.mission, st = run.stats;
+  if (m.type === 'drop') {
+    if (I.drop) dropCrate(run, p);
+    stepCrates(run, dt);
+    if (m.got >= m.zoneList.length) { finishMission(true); return true; }
+    if (m.crates <= 0 && !m.flying.length) { finishMission(false, 'Out of crates.'); return true; }
+  } else if (m.type === 'gems') {
+    m.got = run.gems || 0;
+    if (m.got >= m.goal) { finishMission(true); return true; }
+  } else if (m.type === 'skim') {
+    m.got = st.skim + st.wave;
+    if (m.got >= m.goal) { finishMission(true); return true; }
+  } else if (m.type === 'chase') {
+    m.got = run.next;
+    run.ringT = (run.ringT || 0) + dt;
+    if (m.got >= m.goal) { finishMission(true); return true; }
+    if (run.ringT > m.per) { finishMission(false, 'Too slow to the next ring.'); return true; }
+  } else if (m.type === 'stunts') {
+    if (st.loops >= m.loops && st.rolls >= m.rolls && st.inverted >= m.inv) { finishMission(true); return true; }
+  } else if (m.type === 'climb') {
+    p.boost = 0; // no boost in this one
+    if (Math.abs(p.pos.y - m.lastY) > 30) m.startY += p.pos.y - m.lastY; // a respawn jump is not a climb
+    m.lastY = p.pos.y;
+    m.gain = Math.max(m.gain, p.pos.y - m.startY);
+    if (m.gain >= m.goal) { finishMission(true); return true; }
+  }
+  return false;
+}
+function missionGoalText(run) {
+  const m = run.mission, st = run.stats, f = v => Math.min(v, 999).toFixed(0);
+  switch (m.type) {
+    case 'drop': return 'Zones ' + m.got + ' / ' + m.zoneList.length + ' · ' + m.crates + ' crates · ' + (Input.mode === 'touch' ? 'DROP' : Input.mode === 'pad' ? 'right stick' : 'F') + ' to drop';
+    case 'gems': return 'Shards ' + m.got + ' / ' + m.goal;
+    case 'skim': return 'Skim ' + m.got.toFixed(1) + ' / ' + m.goal + ' s';
+    case 'chase': return 'Rings ' + m.got + ' / ' + m.goal + ' · ' + Math.max(0, m.per - (run.ringT || 0)).toFixed(1) + ' s left';
+    case 'stunts': return 'Loops ' + Math.min(st.loops, m.loops) + '/' + m.loops + ' · Rolls ' + Math.min(st.rolls, m.rolls) + '/' + m.rolls + ' · Upside down ' + f(Math.min(st.inverted, m.inv)) + '/' + m.inv + ' s';
+    case 'climb': return 'Climbed ' + f(m.gain) + ' / ' + m.goal + ' m · no boost';
+  }
+  return '';
+}
+function finishMission(ok, reason) {
+  const run = G.run;
+  if (run.finished) return;
+  run.phase = 'done'; run.finished = true;
+  const m = run.mission, first = ok && G.save.missionDay !== m.key;
+  if (first) { G.save.missionDay = m.key; G.save.stats.missions = (G.save.stats.missions || 0) + 1; }
+  const xp = (first ? 500 : ok ? 100 : 40) + Math.round(run.xpPending);
+  commitRunStats(run, first ? 250 : 0);
+  Sfx.finish();
+  const ups = addXp(xp);
+  saveProgress();
+  run.results = { kind: 'mission', ok, reason, first, xp, levelUps: ups };
   UI.showResults(run);
 }
 
@@ -980,6 +1150,7 @@ function startAttract(worldId) {
   if (G.ringGroup) { G.scene.remove(G.ringGroup); G.ringGroup = null; }
   if (G.shardGroup) { G.scene.remove(G.shardGroup); G.shardGroup = null; }
   if (G.ghostMesh) { G.scene.remove(G.ghostMesh); G.ghostMesh = null; }
+  if (G.missionGroup) { G.scene.remove(G.missionGroup); G.missionGroup = null; }
   placePilot(G.player.p, course.start.pos, course.start.dir);
   G.player.trails.forEach(resetTrail);
   G.camPos = null;

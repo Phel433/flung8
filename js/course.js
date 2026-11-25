@@ -100,6 +100,39 @@ function dailyCourseDef(key) {
   return { id: 'daily-' + key, world, kind: r() < 0.5 ? 'line' : 'gauntlet', name: 'Daily ' + key.slice(4, 6) + '/' + key.slice(6, 8), seed: hashStr('dailyseed' + key), daily: true };
 }
 
+/* Daily mission: one a day, same for everyone. World and type come from the date; type/world can be forced for tests. */
+const MISSIONS = {
+  drop: { name: 'Supply drop', time: 240 },
+  gems: { name: 'Gem sprint', time: 180 },
+  skim: { name: 'Low pass', time: 240 },
+  chase: { name: 'Ring chase', time: 0 },
+  stunts: { name: 'Stunt card', time: 240 },
+  climb: { name: 'Thermal climb', time: 300 }
+};
+function dailyMission(key, type, worldId) {
+  const r = RNG(hashStr('mission' + key));
+  const world = WORLD_BY_ID[worldId] || WORLDS[Math.floor(r() * WORLDS.length)];
+  const types = Object.keys(MISSIONS).filter(t => !(t === 'skim' && world.kind === 'islands')); // nothing to skim over a cloud sea
+  type = MISSIONS[type] ? type : types[Math.floor(r() * types.length)];
+  const m = { key, world: world.id, type, name: MISSIONS[type].name, time: MISSIONS[type].time };
+  if (type === 'drop') Object.assign(m, { zones: 3, crates: 5 });
+  if (type === 'gems') m.goal = r.int(6, 10);
+  if (type === 'skim') m.goal = 20 + r.int(0, 2) * 5;
+  if (type === 'chase') Object.assign(m, { goal: r.int(12, 18), per: 12 });
+  if (type === 'stunts') Object.assign(m, { loops: r.int(2, 3), rolls: r.int(4, 6), inv: 6 + r.int(0, 2) * 2 });
+  if (type === 'climb') m.goal = 250 + r.int(0, 3) * 50;
+  const min = Math.round(m.time / 60);
+  m.text = {
+    drop: 'Land supply crates in 3 zones · 5 crates · ' + min + ' min',
+    gems: 'Grab ' + m.goal + ' Sky Shards in ' + min + ' min',
+    skim: 'Skim the ground or water for ' + m.goal + ' s in ' + min + ' min',
+    chase: 'Fly through ' + m.goal + ' rings · ' + m.per + ' s to reach each one',
+    stunts: 'In ' + min + ' min: ' + m.loops + ' loops, ' + m.rolls + ' barrel rolls, ' + m.inv + ' s upside down',
+    climb: 'Climb ' + m.goal + ' m in thermals without boost · ' + min + ' min'
+  }[type];
+  return m;
+}
+
 function courseDefById(id) {
   if (COURSE_BY_ID[id]) return COURSE_BY_ID[id];
   if (id.startsWith('daily-')) return dailyCourseDef(id.slice(6));

@@ -39,6 +39,16 @@ window.addEventListener('load', () => {
       setWeather(G.world, kind); const c = G.world.wx; c.cur = weatherLook(c.base, kind); stepWeather(G.world, 0);
       return;
     }
+    // daily mission look check: ?shot=mission:<type>:<world>
+    if (shot.startsWith('mission:')) {
+      const [, t, w] = shot.split(':');
+      startRun({ mode: 'mission', mission: dailyMission(todayKey(), t, w) }); await wait(4200);
+      const z = G.run.mission.zoneList && G.run.mission.zoneList[0];
+      if (z) { placePilot(G.player.p, new THREE.Vector3(z.x - 150, z.y + 55, z.z), new THREE.Vector3(1, -0.2, 0)); G.camPos = null; }
+      await wait(300); G.state = 'pause';
+      return;
+    }
+    if (shot === 'title-daily') { G.settings.menuMode = 'daily'; UI.renderModeCards(); }
     if (shot === 'sheet') UI.go('fly');
     if (shot === 'flight' || shot === 'results') { startRun({ mode: 'course', courseId: 'harbor-line' }); await wait(5000); }
     if (shot === 'results') { G.run.next = G.run.rings.length; finishCourse(); }
