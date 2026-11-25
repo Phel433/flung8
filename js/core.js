@@ -101,8 +101,17 @@ function mixHex(a, b, t) {
   const r = Math.round(lerp(A >> 16, B >> 16, t)), g = Math.round(lerp((A >> 8) & 255, (B >> 8) & 255, t)), bl = Math.round(lerp(A & 255, B & 255, t));
   return '#' + ((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1);
 }
+const NAME_MAX = 16;
+// shortcut: a word list catches the common cases only, add words or move to a service when it leaks
+const RUDE = 'fuck shit bitch cunt dick cock pussy whore slut bastard asshole arse piss wank twat nigg fag retard rape nazi hitler porn sex tits boob penis vagina dildo kike spic chink'.split(' ');
+function isRude(s) {
+  const t = String(s || '').toLowerCase().replace(/[0@]/g, 'o').replace(/[1!|]/g, 'i').replace(/3/g, 'e').replace(/[4]/g, 'a').replace(/[5$]/g, 's').replace(/7/g, 't').replace(/[^a-z]/g, '');
+  return RUDE.some(w => t.includes(w));
+}
+/* Every callsign, ours or a stranger's, goes through here. Rude or empty names become '' (callers show "Pilot"). */
 function cleanCallsign(s) {
-  return String(s || '').replace(/[^A-Za-z0-9 _\-.]/g, '').trim().slice(0, 14);
+  const c = String(s || '').replace(/[^A-Za-z0-9 _\-.]/g, '').trim().slice(0, NAME_MAX);
+  return isRude(s) || isRude(c) ? '' : c;
 }
 
 /* The one global game state. */

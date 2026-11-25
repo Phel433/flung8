@@ -102,7 +102,7 @@ const Net = (() => {
     }, () => { emit(); });
   }
 
-  function me() { return { cs: G.save.callsign || 'Pilot', paint: G.save.paint, frame: G.save.frame, trail: G.save.trail, lvl: G.save.level }; }
+  function me() { return { cs: cleanCallsign(G.save.callsign) || 'Pilot', paint: G.save.paint, frame: G.save.frame, trail: G.save.trail, lvl: G.save.level }; }
 
   /* ---------- leaderboard ---------- */
   function rankings(courseId) {

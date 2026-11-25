@@ -189,6 +189,7 @@ const UI = {
 
   saveCallsign(v) {
     const cs = cleanCallsign(v);
+    if (!cs && isRude(v)) { this.toast('Pick another name', 'That name is not allowed.', '#ff6b6b'); return; }
     if (!cs) { this.toast('Callsign needed', 'Use letters, numbers, spaces, dots, dashes.', '#ff6b6b'); return; }
     G.save.callsign = cs; saveProgress();
     this.toast('Callsign saved', 'You fly as ' + cs + '.', '#7affc8');
@@ -563,7 +564,7 @@ const UI = {
     const seg = (key, opts) => '<div class="seg" data-k="' + key + '">' + opts.map(([v, n]) => '<button data-v="' + v + '" class="' + (String(s[key]) === String(v) ? 'on' : '') + '">' + n + '</button>').join('') + '</div>';
     const rng = (key, min, max, step) => '<input type="range" id="set-' + key + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + s[key] + '" data-k="' + key + '">';
     $('settings-body').innerHTML =
-      '<label for="set-cs">Callsign</label><div class="callsign"><input id="set-cs" maxlength="14" value="' + escapeHtml(G.save.callsign) + '"><button class="btn small sky" id="set-cs-save">Save</button></div>' +
+      '<label for="set-cs">Callsign</label><div class="callsign"><input id="set-cs" maxlength="16" value="' + escapeHtml(G.save.callsign) + '"><button class="btn small sky" id="set-cs-save">Save</button></div>' +
       '<label for="set-master">Master volume</label>' + rng('master', 0, 1, 0.05) +
       '<label for="set-music">Music</label>' + rng('music', 0, 1, 0.05) +
       '<label for="set-sfx">Effects and wind</label>' + rng('sfx', 0, 1, 0.05) +
