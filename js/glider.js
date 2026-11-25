@@ -99,6 +99,7 @@ function placePilot(p, pos, dir) {
   p.speed = 36; p.wp = p.wr = p.wy = 0; p.lift = 0; p.alive = true; p.crashT = 0; p.stall = 0;
   updateAxes(p);
   p.vel.copy(p.fwd).multiplyScalar(p.speed);
+  p.dir = p.fwd.clone(); p.lagging = false;
 }
 
 function updateAxes(p) {
@@ -164,10 +165,33 @@ function flyPilot(p, ctl, dt, W, assist) {
   p.q.normalize();
   updateAxes(p);
 
-  // energy: diving gains speed, climbing spends it
-  let acc = -9.81 * p.fwd.y - 0.0007 * F.drag * p.speed * p.speed;
-  // free fly: pulling the nose round costs speed (a hard loop loses about a third); quick rolls cost much less
-  if (ctl.freeFly) acc -= 0.023 * (p.wp * p.wp + 0.05 * p.wr * p.wr) * p.speed;
+  // travel direction. Normally the glider moves where the nose points. In free fly (and until it settles after release)
+  // the path lags the nose like a real wing: lift bends the path toward the nose, strongly at small angles and weakly
+  // once the wing stalls, so pulling the nose straight up keeps you sliding forward and rising a little (a Cobra).
+  if (!p.dir) p.dir = p.fwd.clone();
+  if (ctl.freeFly) p.lagging = true;
+  let aoa = 0;
+  if (p.lagging) {
+    aoa = p.dir.angleTo(p.fwd); // angle of attack: between where the nose points and where the glider moves
+    const axis = _v.crossVectors(p.dir, p.fwd);
+    if (axis.lengthSq() < 1e-8) axis.copy(p.right); // nose exactly along or against the path
+    axis.normalize();
+    const lift = aoa < 0.3 ? aoa / 0.3 : Math.max(0.12, 1.3 - aoa); // stalls past ~17 degrees
+    p.dir.applyAxisAngle(axis, Math.min(aoa, 0.03 * p.speed * lift * dt)).normalize();
+    // the air also nudges the nose back toward the path, so a steady pull loops and only a sharp yank makes a Cobra
+    if (ctl.freeFly) { _q.setFromAxisAngle(axis, -Math.min(aoa, 1.5 * aoa * dt)); p.q.premultiply(_q); p.q.normalize(); updateAxes(p); }
+    if (!ctl.freeFly) {
+      // released: the nose swings back to the path like a weathervane, then normal flight takes over
+      _q.setFromAxisAngle(axis, -Math.min(aoa, (1 + aoa * 2.5) * dt));
+      p.q.premultiply(_q); p.q.normalize(); updateAxes(p);
+      if (p.dir.angleTo(p.fwd) < 0.03) p.lagging = false;
+    }
+    aoa = p.dir.angleTo(p.fwd);
+  } else p.dir.copy(p.fwd);
+
+  // energy: diving gains speed, climbing spends it; a wing at a steep angle to the air drags hard
+  let acc = -9.81 * p.dir.y - 0.0007 * F.drag * p.speed * p.speed;
+  if (aoa) acc -= 0.012 * Math.sin(aoa) * Math.sin(aoa) * p.speed * p.speed;
   p.boosting = false;
   if (ctl.boost && p.boost > 0.01) { acc += 17 * F.boost; p.boost = Math.max(0, p.boost - 0.26 * dt); p.boosting = true; }
   if (ctl.brake) acc -= p.speed * 0.55;
@@ -175,7 +199,7 @@ function flyPilot(p, ctl, dt, W, assist) {
   p.speed = clamp(p.speed + acc * dt, 6, 150);
   p.braking = !!ctl.brake;
 
-  p.vel.copy(p.fwd).multiplyScalar(p.speed);
+  p.vel.copy(p.dir).multiplyScalar(p.speed);
   // sink when slow or stalled
   p.vel.y -= p.stall * 14 + Math.max(0, 20 - p.speed) * 0.25;
   // thermals
