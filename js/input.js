@@ -83,15 +83,17 @@ const Input = (() => {
     const k = c => keys.has(c), w = c => pressed.has(c);
     const st = G.settings || {};
     const invert = st.pitch === 'arcade' ? -1 : 1; // plane style: forward = dive
-    let pitch = 0, roll = 0, yaw = 0;
+    let pitch = 0, roll = 0, yaw = 0, slide = 0;
     // touch arrow buttons act exactly like the arrow keys
     if (k('KeyW') || k('ArrowUp') || held.up) pitch -= 1;
     if (k('KeyS') || k('ArrowDown') || held.down) pitch += 1;
     if (k('KeyA') || held.left) roll -= 1;
     if (k('KeyD') || held.right) roll += 1;
-    // barrel rolls: left/right arrows sit under the right hand while WASD flies, Q/E still work
-    if (k('KeyQ') || k('ArrowLeft')) yaw += 1;
-    if (k('KeyE') || k('ArrowRight')) yaw -= 1;
+    // barrel rolls on the left/right arrows; Q/E slide sideways without turning
+    if (k('ArrowLeft')) yaw += 1;
+    if (k('ArrowRight')) yaw -= 1;
+    if (k('KeyQ')) slide -= 1;
+    if (k('KeyE')) slide += 1;
     pitch *= invert;
     let boost = k('Space') || held.boost, brake = k('ShiftLeft') || k('ShiftRight') || held.brake;
     // free fly: LMB held with the pointer locked; the mouse sets roll and pitch rates (rad/s)
@@ -142,7 +144,7 @@ const Input = (() => {
       }
       for (let i = 0; i < gp.buttons.length; i++) padPrev[i] = b(i);
     }
-    Object.assign(S, { pitch: clamp(pitch, -1, 1), roll: clamp(roll, -1, 1), yaw: clamp(yaw, -1, 1), boost, brake, cam, reset, pause, photo, map, ok, back, nav, board, steer, drop, freeFly, mx: mxr, my: myr });
+    Object.assign(S, { pitch: clamp(pitch, -1, 1), roll: clamp(roll, -1, 1), yaw: clamp(yaw, -1, 1), boost, brake, cam, reset, pause, photo, map, ok, back, nav, board, steer, drop, slide, freeFly, mx: mxr, my: myr });
   }
   function endFrame() { pressed.clear(); taps.clear(); mouse.dx = mouse.dy = 0; }
   return { bind, update, endFrame, setMode, state: S, get mode() { return mode; } };

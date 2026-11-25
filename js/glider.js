@@ -200,6 +200,9 @@ function flyPilot(p, ctl, dt, W, assist) {
   p.braking = !!ctl.brake;
 
   p.vel.copy(p.dir).multiplyScalar(p.speed);
+  // Q/E: slide sideways along the level wing line, heading unchanged (players only; the autopilot never slides)
+  p.slideV = damp(p.slideV || 0, (ctl.slide || 0) * 14, 4, dt);
+  if (Math.abs(p.slideV) > 0.01) { _v2.set(-p.fwd.z, 0, p.fwd.x); if (_v2.lengthSq() < 1e-6) _v2.set(p.right.x, 0, p.right.z); p.vel.addScaledVector(_v2.normalize(), p.slideV); }
   // sink when slow or stalled
   p.vel.y -= p.stall * 14 + Math.max(0, 20 - p.speed) * 0.25;
   // thermals

@@ -310,7 +310,7 @@ function stepPlay(dt) {
     return;
   }
   const prev = _c.copy(p.pos);
-  const ctl = { pitch: I.pitch, roll: I.roll, yaw: I.yaw, boost: I.boost, brake: I.brake, mode: G.settings.steer, freeFly: I.freeFly, mx: I.mx, my: I.my };
+  const ctl = { pitch: I.pitch, roll: I.roll, yaw: I.yaw, boost: I.boost, brake: I.brake, mode: G.settings.steer, freeFly: I.freeFly, mx: I.mx, my: I.my, slide: I.slide };
   const hit = flyPilot(p, ctl, dt, W, G.settings.assist);
   run.invuln = Math.max(0, run.invuln - dt);
   if (hit && run.invuln <= 0) { crash(); return; }

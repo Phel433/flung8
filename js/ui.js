@@ -607,7 +607,8 @@ const UI = {
       '<span><kbd>W</kbd> <kbd>S</kbd></span><span>Dive / climb, hold to loop (swap in Settings)</span>' +
       '<span><kbd>A</kbd> <kbd>D</kbd></span><span>Turn left / right</span>' +
       '<span><kbd>T</kbd></span><span>Switch steering: steep bank, free roll, sharp turn</span>' +
-      '<span><kbd>←</kbd> <kbd>→</kbd> or <kbd>Q</kbd> <kbd>E</kbd></span><span>Barrel roll left / right (hold)</span>' +
+      '<span><kbd>←</kbd> <kbd>→</kbd></span><span>Barrel roll left / right (hold)</span>' +
+      '<span><kbd>Q</kbd> <kbd>E</kbd></span><span>Slide left / right without turning</span>' +
       '<span><kbd>Space</kbd></span><span>Boost (uses the boost bar)</span>' +
       '<span><kbd>Shift</kbd></span><span>Air brake, tighter turns</span>' +
       '<span><kbd>F</kbd></span><span>Drop a supply crate (Daily mission)</span>' +
