@@ -310,6 +310,7 @@ function stepPlay(dt) {
     return;
   }
   const prev = _c.copy(p.pos);
+  run.prevPos = run.prevPos || new THREE.Vector3(); run.prevPos.copy(p.pos);
   const ctl = { pitch: I.pitch, roll: I.roll, yaw: I.yaw, boost: I.boost, brake: I.brake, mode: G.settings.steer, freeFly: I.freeFly, mx: I.mx, my: I.my, slide: I.slide };
   const hit = flyPilot(p, ctl, dt, W, G.settings.assist);
   run.invuln = Math.max(0, run.invuln - dt);
@@ -705,7 +706,12 @@ function setupMission(run, W, p) {
     return;
   }
   if (m.type === 'gems') { scatterShards(W, []); G.shardGroup = buildShardMeshes(W, []); G.scene.add(G.shardGroup); }
-  if (m.type === 'drop') { m.zoneList = pickDropZones(W, m.zones); m.flying = []; G.missionGroup = buildDropZones(m.zoneList); G.scene.add(G.missionGroup); }
+  if (m.type === 'drop') {
+    m.zoneList = pickDropZones(W, m.zones); m.flying = []; G.missionGroup = buildDropZones(m.zoneList); G.scene.add(G.missionGroup);
+    // boost rings to refill on: the ring-field finder already keeps them in open air, apart from each other
+    m.boostRings = generateField(W, (Math.random() * 2147483647) | 0).slice(0, 8).map(r => Object.assign(r, { type: 'boost', r: 12, back: 0 }));
+    G.missionGroup.add(buildRingMeshes(m.boostRings, W));
+  }
   if (m.type === 'climb') {
     // start low in a thermal, so the height to gain is really there
     const t = W.thermals[Math.floor(Math.random() * W.thermals.length)];
@@ -805,6 +811,13 @@ function stepMission(run, p, I, dt) {
   if (m.type === 'drop') {
     if (I.drop) dropCrate(run, p);
     stepCrates(run, dt);
+    for (const r of m.boostRings || []) {
+      if (r.done) { if (run.t > r.back) { r.done = false; r.mesh.visible = true; } continue; }
+      if (crossesRing(run.prevPos, p.pos, r, 1.5, true)) {
+        r.done = true; r.back = run.t + 20000; r.mesh.visible = false;
+        p.boost = 1; Sfx.boostRing(); FX.ring(r, '#ff8a3a'); UI.flash('Boost refilled', true);
+      }
+    }
     if (m.got >= m.zoneList.length) { finishMission(true); return true; }
     if (m.crates <= 0 && !m.flying.length) { finishMission(false, 'Out of crates.'); return true; }
   } else if (m.type === 'gems') {
@@ -1049,7 +1062,11 @@ function updateCamera(dt) {
   } else if (mode === 'chase' || mode === 'far') {
     const far = mode === 'far';
     const dist = (far ? 26 : 12) + p.speed * (far ? 0.08 : 0.05), h = far ? 7 : 3.4;
-    _a.copy(WORLD_UP).multiplyScalar(0.65).addScaledVector(p.up, 0.35).normalize();
+    // camera up follows the glider's own up (smoothed), so loops never flip the view the way a sky-up camera does
+    if (!G.camUp) G.camUp = p.up.clone();
+    G.camUp.lerp(p.up, 1 - Math.exp(-6 * dt));
+    if (G.camUp.lengthSq() < 0.01) G.camUp.copy(p.up);
+    _a.copy(G.camUp.normalize());
     _b.copy(p.pos).addScaledVector(p.fwd, -dist).addScaledVector(_a, h);
     if (!G.camPos) G.camPos = _b.clone();
     G.camPos.lerp(_b, 1 - Math.exp(-(far ? 4 : 7) * dt));
