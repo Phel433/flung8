@@ -48,6 +48,7 @@ window.addEventListener('load', () => {
       await wait(300); G.state = 'pause';
       return;
     }
+    if (shot === 'rotate') $('rotate').style.display = 'flex';
     if (shot === 'title-daily') { G.settings.menuMode = 'daily'; UI.renderModeCards(); }
     if (shot === 'sheet') UI.go('fly');
     if (shot === 'flight' || shot === 'results') { startRun({ mode: 'course', courseId: 'harbor-line' }); await wait(5000); }
