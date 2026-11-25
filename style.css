@@ -352,6 +352,12 @@ body[data-input="touch"] .gauge b { font-size: 30px; }
 .toast { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--apricot)); border-radius: 12px; padding: 10px 14px; max-width: 320px; animation: toast 4.2s ease forwards; backdrop-filter: blur(10px); }
 .toast b { display: block; font-size: 14px; } .toast span { font-size: 13px; color: var(--dim); }
 @keyframes toast { 0% { opacity: 0; transform: translateX(30px); } 8% { opacity: 1; transform: none; } 88% { opacity: 1; } 100% { opacity: 0; transform: translateX(30px); } }
+/* phones held upright: the game only plays sideways (main.js pauses a flight when this shows) */
+#rotate { display: none; position: fixed; inset: 0; z-index: 40; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; background: var(--ink); color: var(--text); }
+#rotate svg { width: 72px; height: 72px; color: var(--apricot); }
+#rotate b { font-family: var(--display); font-weight: 900; font-size: 32px; text-transform: uppercase; line-height: 1; }
+#rotate small { color: var(--dim); font-size: 14px; font-weight: 700; }
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 600px) { #rotate { display: flex; } }
 #loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: radial-gradient(circle at 50% 40%, #2b3c74, #0d1328 70%); z-index: 30; }
 .logo { font-family: var(--display); font-weight: 900; font-size: clamp(84px, 17vw, 190px); line-height: 0.78; letter-spacing: -0.01em; margin: 0; text-transform: uppercase; background: linear-gradient(180deg, #fff6e6 20%, #ffc48f 60%, #ff8a4c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 #loading .logo { font-size: 110px; }

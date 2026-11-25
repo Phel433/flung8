@@ -607,6 +607,7 @@ const UI = {
       '<span><kbd>←</kbd> <kbd>→</kbd> or <kbd>Q</kbd> <kbd>E</kbd></span><span>Barrel roll left / right (hold)</span>' +
       '<span><kbd>Space</kbd></span><span>Boost (uses the boost bar)</span>' +
       '<span><kbd>Shift</kbd></span><span>Air brake, tighter turns</span>' +
+      '<span>Hold left mouse</span><span>Fly freely with the mouse. Turning hard costs speed.</span>' +
       '<span><kbd>C</kbd></span><span>Change camera</span>' +
       '<span><kbd>R</kbd></span><span>Back to the last ring</span>' +
       '<span><kbd>P</kbd></span><span>Photo mode</span>' +

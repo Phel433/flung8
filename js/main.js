@@ -104,6 +104,9 @@ function boot() {
   checkNewUnlocks(false);
   resize();
   window.addEventListener('resize', () => { resize(); UI.layoutStage(); });
+  // same rule as the #rotate screen in style.css: turning a phone upright pauses the flight behind it
+  const upright = matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 600px)');
+  upright.addEventListener('change', () => { if (upright.matches) pauseGame(); });
   UI.open('title');
   $('loading').hidden = true;
   requestAnimationFrame(t => { lastT = t; requestAnimationFrame(frame); });

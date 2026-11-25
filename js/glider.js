@@ -136,6 +136,11 @@ function flyPilot(p, ctl, dt, W, assist) {
   else if (Math.abs(ctl.pitch) > 0.1 && Math.abs(steer) <= 0.1 && p.up.y < 0) tRoll = 0;
   else tRoll = clamp((steer * maxBank - rollA) * 5, -F.roll, F.roll);
   if (assist && Math.abs(ctl.pitch) < 0.08 && p.up.y > 0.4 && Math.abs(p.fwd.y) < 0.5) tPitch += -p.fwd.y * 0.35;
+  // free fly (hold LMB): the mouse sets roll and pitch rates directly, with no bank limit and no auto-level; keys add on top
+  if (ctl.freeFly) {
+    tRoll = clamp(ctl.mx, -6, 6) * auth + (Math.abs(spin) > 0.08 ? spin * F.roll * auth : 0);
+    tPitch = clamp(ctl.my, -4, 4) * auth + ctl.pitch * F.pitch * auth;
+  }
   // a stalled wing drops its nose toward the ground, upright or upside down (so a slow loop falls through instead of hanging)
   if (p.stall > 0 && p.fwd.y > -0.7) tPitch -= p.stall * 1.3 * (p.up.y < 0 ? -1 : 1);
   // players pitch freely, so holding W/S loops all the way round. The autopilot (title flyby, par times) keeps the old stop at
@@ -161,6 +166,8 @@ function flyPilot(p, ctl, dt, W, assist) {
 
   // energy: diving gains speed, climbing spends it
   let acc = -9.81 * p.fwd.y - 0.0007 * F.drag * p.speed * p.speed;
+  // free fly: pulling the nose round costs speed (a hard loop loses about a third); quick rolls cost much less
+  if (ctl.freeFly) acc -= 0.023 * (p.wp * p.wp + 0.05 * p.wr * p.wr) * p.speed;
   p.boosting = false;
   if (ctl.boost && p.boost > 0.01) { acc += 17 * F.boost; p.boost = Math.max(0, p.boost - 0.26 * dt); p.boosting = true; }
   if (ctl.brake) acc -= p.speed * 0.55;

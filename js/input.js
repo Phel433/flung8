@@ -5,7 +5,10 @@ const Input = (() => {
   const keys = new Set(), pressed = new Set();
   const taps = new Set();
   const held = { boost: false, brake: false, left: false, right: false, up: false, down: false };
-  const mouse = { x: 0, y: 0, l: false, r: false, seen: false };
+  const mouse = { x: 0, y: 0, l: false, r: false, seen: false, dx: 0, dy: 0 };
+  const FREE_SENS = 0.004; // free fly: turn rate in rad/s per pixel/second of mouse movement
+  let cv = null;
+  const locked = () => !!cv && document.pointerLockElement === cv;
   const padPrev = [];
   let padAxPrev = { x: 0, y: 0 };
   let mode = 'kb';
@@ -14,6 +17,7 @@ const Input = (() => {
   function typing(e) { const t = e.target; return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); }
 
   function bind(canvas) {
+    cv = canvas;
     window.addEventListener('keydown', e => {
       if (typing(e)) return;
       if (!keys.has(e.code)) pressed.add(e.code);
@@ -29,16 +33,30 @@ const Input = (() => {
     canvas.addEventListener('pointerdown', e => {
       if (e.pointerType === 'touch') { e.preventDefault(); return; }
       mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true;
-      if (e.button === 0) mouse.l = true;
+      if (e.button === 0) {
+        mouse.l = true;
+        // free fly: lock the pointer so the mouse can keep turning without hitting the screen edge
+        if (G.state === 'play' && G.run && G.run.phase !== 'done') { try { const pr = canvas.requestPointerLock(); if (pr && pr.catch) pr.catch(() => {}); } catch (err) { /* not supported */ } }
+      }
       if (e.button === 2) mouse.r = true;
     });
     canvas.addEventListener('pointermove', e => {
       if (e.pointerType === 'touch') { e.preventDefault(); return; }
       mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true;
+      if (locked()) { mouse.dx += e.movementX || 0; mouse.dy += e.movementY || 0; }
     });
     const up = e => {
-      if (e.pointerType !== 'touch') { if (e.button === 0) mouse.l = false; if (e.button === 2) mouse.r = false; }
+      if (e.pointerType !== 'touch') {
+        if (e.button === 0) { mouse.l = false; if (locked()) document.exitPointerLock(); }
+        if (e.button === 2) mouse.r = false;
+      }
     };
+    // browsers swallow Esc to release a locked pointer: losing the lock while LMB is still down counts as Esc
+    document.addEventListener('pointerlockchange', () => {
+      if (locked() || !mouse.l) return;
+      mouse.l = false;
+      if (G.state === 'play') pauseGame();
+    });
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
     canvas.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -76,12 +94,17 @@ const Input = (() => {
     if (k('KeyE') || k('ArrowRight')) yaw -= 1;
     pitch *= invert;
     let boost = k('Space') || held.boost, brake = k('ShiftLeft') || k('ShiftRight') || held.brake;
-    if (mode === 'kb' && st.mouse && mouse.seen && G.state === 'play') {
+    // free fly: LMB held with the pointer locked; the mouse sets roll and pitch rates (rad/s)
+    if (locked() && (G.state !== 'play' || (G.run && G.run.phase === 'done'))) document.exitPointerLock();
+    const freeFly = locked() && mouse.l && G.state === 'play';
+    const rate = 1 / Math.max(G.dt || 1 / 60, 1 / 240);
+    const mxr = freeFly ? mouse.dx * rate * FREE_SENS : 0, myr = freeFly ? mouse.dy * rate * FREE_SENS * invert : 0;
+    if (!freeFly && mode === 'kb' && st.mouse && mouse.seen && G.state === 'play') {
       const mx = (mouse.x - G.W / 2) / (Math.min(G.W, G.H) * 0.35), my = (mouse.y - G.H / 2) / (Math.min(G.W, G.H) * 0.35);
       const dz = v => (Math.abs(v) < 0.06 ? 0 : clamp(v, -1, 1));
       if (!roll) roll = dz(mx);
       if (!pitch) pitch = -dz(my) * invert * -1;
-      boost = boost || mouse.l; brake = brake || mouse.r;
+      brake = brake || mouse.r;
     }
     let cam = w('KeyC') || taps.has('cam'), reset = w('KeyR') || taps.has('reset'), pause = w('Escape') || taps.has('pause');
     let photo = w('KeyP') || taps.has('photo'), map = w('KeyM') || taps.has('map'), steer = w('KeyT');
@@ -118,8 +141,8 @@ const Input = (() => {
       }
       for (let i = 0; i < gp.buttons.length; i++) padPrev[i] = b(i);
     }
-    Object.assign(S, { pitch: clamp(pitch, -1, 1), roll: clamp(roll, -1, 1), yaw: clamp(yaw, -1, 1), boost, brake, cam, reset, pause, photo, map, ok, back, nav, board, steer });
+    Object.assign(S, { pitch: clamp(pitch, -1, 1), roll: clamp(roll, -1, 1), yaw: clamp(yaw, -1, 1), boost, brake, cam, reset, pause, photo, map, ok, back, nav, board, steer, freeFly, mx: mxr, my: myr });
   }
-  function endFrame() { pressed.clear(); taps.clear(); }
+  function endFrame() { pressed.clear(); taps.clear(); mouse.dx = mouse.dy = 0; }
   return { bind, update, endFrame, setMode, state: S, get mode() { return mode; } };
 })();

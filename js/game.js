@@ -305,7 +305,7 @@ function stepPlay(dt) {
     return;
   }
   const prev = _c.copy(p.pos);
-  const ctl = { pitch: I.pitch, roll: I.roll, yaw: I.yaw, boost: I.boost, brake: I.brake, mode: G.settings.steer };
+  const ctl = { pitch: I.pitch, roll: I.roll, yaw: I.yaw, boost: I.boost, brake: I.brake, mode: G.settings.steer, freeFly: I.freeFly, mx: I.mx, my: I.my };
   const hit = flyPilot(p, ctl, dt, W, G.settings.assist);
   run.invuln = Math.max(0, run.invuln - dt);
   if (hit && run.invuln <= 0) { crash(); return; }
@@ -886,10 +886,20 @@ function updateCamera(dt) {
     const fl = W.floorAt(G.camPos.x, G.camPos.z) + 2;
     if (G.camPos.y < fl) G.camPos.y = fl;
     // the floor check misses mesas, pillars and canyon walls: slide the camera in toward the glider until it's in clear air
+    // free fly: while LMB is held the camera keeps the offset and up it had at the press, so the view doesn't turn
+    // and the glider visibly spins; on release it eases back to the chase view over about half a second
+    const ff = G.state === 'play' && Input.state.freeFly;
+    if (ff && !G.freeWas) G.free = { off: cam.position.clone().sub(p.pos), up: cam.up.clone() };
+    G.freeWas = ff;
+    G.freeK = ff ? 1 : Math.max(0, (G.freeK || 0) - dt * 2);
+    if (ff && G.free) G.camPos.copy(p.pos).add(G.free.off);
     for (let k = 0; k < 10 && W.clearance(G.camPos.x, G.camPos.y, G.camPos.z).d < 3; k++) G.camPos.lerp(p.pos, 0.3);
     cam.position.copy(G.camPos);
+    _c.copy(p.pos).addScaledVector(p.fwd, 30).addScaledVector(_a, far ? 2 : 3);
+    if (G.freeK > 0 && G.free) { const k = smooth(0, 1, G.freeK); _a.lerp(G.free.up, k).normalize(); _c.lerp(p.pos, k); }
+    else G.free = null;
     cam.up.copy(_a);
-    cam.lookAt(_c.copy(p.pos).addScaledVector(p.fwd, 30).addScaledVector(_a, far ? 2 : 3));
+    cam.lookAt(_c);
   } else if (mode === 'cine') {
     if (!G.cinePos || G.cinePos.distanceTo(p.pos) > 240) {
       G.cinePos = p.pos.clone().addScaledVector(p.fwd, 150 + p.speed).add(_a.set((Math.random() - 0.5) * 70, 10 + Math.random() * 20, (Math.random() - 0.5) * 70));
